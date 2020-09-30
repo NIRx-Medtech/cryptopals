@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 var KEY, IV []byte
 
 const BS = 16
+
+var s string
 
 var inputStrings = []string{
 	"MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc=",
@@ -32,6 +35,8 @@ func init() {
 	rand.Read(KEY)
 	IV = make([]byte, BS)
 	rand.Read(IV)
+
+	s = inputStrings[rand.Intn(len(inputStrings))]
 }
 
 func first(in string) []byte {
@@ -48,7 +53,6 @@ func first(in string) []byte {
 }
 
 func second(iv, ciphertext []byte) bool {
-
 	// decrypt the ciphertext produced by the first function
 	_, err := tools.DecryptAesCBC(ciphertext, KEY, iv)
 	// check its padding
@@ -59,50 +63,72 @@ func second(iv, ciphertext []byte) bool {
 	return true
 }
 
-// func findPadding(iv, block []byte) int {
-// 	startIndex := len(ciphertext) - BS
-
-// 	clone := make([]byte, len(ciphertext))
-// 	copy(clone, ciphertext)
-
-// 	for i := range clone[startIndex:] {
-// 		clone[i+startIndex-BS] = 255
-// 		if second(clone) == false {
-// 			return len(ciphertext) - (i + startIndex)
-// 		}
-// 	}
-// 	return -1
-// }
-
 func findLastByte(prevBlock, targetBlock []byte) (byte, error) {
+	return findByteN(prevBlock, targetBlock, 1)
+	// copyPrevBlock := append([]byte{}, prevBlock...)
+	// for c := 0; c < 256; c++ {
+	// 	copyPrevBlock[len(copyPrevBlock)-1] = byte(c)
+	// 	if second(copyPrevBlock, targetBlock) {
+	// 		return 0x01 ^ byte(c) ^ prevBlock[len(prevBlock)-1], nil
+	// 	}
+	// }
+
+	// return 0, errors.New("Error")
+}
+
+// ......1
+
+// .....22
+
+// ....3..
+
+// .....22
+
+func findByteN(prevBlock, targetBlock []byte, n int) (byte, error) {
 
 	copyPrevBlock := append([]byte{}, prevBlock...)
 	for c := 0; c < 256; c++ {
-		copyPrevBlock[len(copyPrevBlock)-1] = byte(c)
+		copyPrevBlock[len(copyPrevBlock)-n] = byte(c)
 		if second(copyPrevBlock, targetBlock) {
-			// fmt.Println(findPadding(copyPrevBlock, targetBlock))
-			return 0x01 ^ byte(c) ^ prevBlock[len(prevBlock)-1], nil
+			return byte(n) ^ byte(c) ^ prevBlock[len(prevBlock)-n], nil
 		}
 	}
 
 	return 0, errors.New("Error")
 }
 
+func findBlockBytes(prevBlock, targetBlock []byte) []byte {
+	result := make([]byte, BS)
+	copyPrevBlock := append([]byte{}, prevBlock...)
+	for n := 1; n < BS+1; n++ {
+		for m := n - 1; m > 0; m-- {
+			copyPrevBlock[BS-m] = byte(n) ^ result[BS-m] ^ prevBlock[BS-m]
+		}
+
+		b, err := findByteN(copyPrevBlock, targetBlock, n)
+
+		if err != nil {
+			fmt.Println("error")
+		} else {
+			result[len(result)-n] = b
+			// fmt.Printf("Got %s\n", string([]byte{b}))
+		}
+	}
+	return result
+}
+
 func main() {
 	s := inputStrings[rand.Intn(len(inputStrings))]
 	fmt.Println("original", s)
 	encrypted := first(s)
-	b, _ := findLastByte(IV, encrypted[0:BS])
-	fmt.Printf("Should be: %s, got %s\n", s[BS-1:BS], string([]byte{b}))
-	// fmt.Println(second(iv, encrypted))
+	fmt.Println("First block")
+	result := findBlockBytes(IV, encrypted[0:BS])
+	fmt.Printf("Should be: %s, got %s\n", s[0:BS], result)
+	blockCount := int(math.Ceil(float64(len(encrypted)) / float64(BS)))
+	for n := 1; n < blockCount-1; n++ {
+		fmt.Println("Block #", n)
+		result := findBlockBytes(encrypted[(n-1)*BS:n*BS], encrypted[n*BS:(n+1)*BS])
+		fmt.Printf("Should be: %s, got %s\n", s[n*BS:(n+1)*BS], result)
+	}
 
-	// ciphertext[15] ^ decrypted[31] = something
-	// our_byte ^decrypted[31] = 0x01 (padding valid)
-
-	// decrypted[31] = 0x01 ^ our_byte
-	// something (=plaintext[31]) = decrypted[31] ^ ciphertext[15]
-
-	// ciphertext[15] so that 0x02
-	// 0x02 ^
-	// play with ciphertext[14]
 }
