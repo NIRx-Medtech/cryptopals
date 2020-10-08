@@ -5,6 +5,26 @@ import (
 	"log"
 )
 
+func DecryptAES(ciphertext, key []byte) []byte {
+	cipher, err := aes.NewCipher(key)
+	if err != nil {
+		log.Fatal(err)
+	}
+	decryptedBlock := make([]byte, len(ciphertext))
+	cipher.Decrypt(decryptedBlock, ciphertext)
+	return decryptedBlock
+}
+
+func EncryptAES(plaintext, key []byte) []byte {
+	cipher, err := aes.NewCipher(key)
+	if err != nil {
+		log.Fatal(err)
+	}
+	encryptedBlock := make([]byte, len(plaintext))
+	cipher.Encrypt(encryptedBlock, plaintext)
+	return encryptedBlock
+}
+
 func DecryptAesECB(ciphertext, key []byte) []byte {
 	cipher, err := aes.NewCipher(key)
 	if err != nil {
