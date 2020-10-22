@@ -79,3 +79,19 @@ func main() {
 	fmt.Println(ourVal)
 	fmt.Println("!###")
 }
+
+// https://godbolt.org/z/4vdTPd
+
+// // mersenne_twister_engine::seed example
+// #include <iostream>
+// #include <random>
+
+// int main ()
+// {
+
+//   std::mt19937 generator (1000);   // mt19937 is a standard mersenne_twister_engine
+// for (int i = 0; i < 10; i++)
+//   std::cout << generator() << std::endl;
+
+//   return 0;
+// }
